@@ -1,0 +1,130 @@
+# process-death-check
+
+[![CI](https://github.com/byfedin/process-death-check/actions/workflows/ci.yml/badge.svg)](https://github.com/byfedin/process-death-check/actions/workflows/ci.yml)
+
+`pdcheck` kills your Android app the way the system does in the background, brings it back and tells you whether the same screen returned in a new process, without crashes and without losing what the user typed.
+
+```text
+$ pdcheck kill -p dev.byfedin.pdcheck.sample
+  Screen: dev.byfedin.pdcheck.sample/dev.byfedin.pdcheck.sample.ForgetfulFormActivity (task #845, pid 5244)
+  Saved state acknowledged for 2 Activity(s)
+  Killed dev.byfedin.pdcheck.sample (5244) with RUN_AS
+FAIL dev.byfedin.pdcheck.sample/dev.byfedin.pdcheck.sample.ForgetfulFormActivity
+  - UI state lost after process death (2)
+      field#1: "hello" -> ""
+      toggle:Urgent: "checked" -> "unchecked"
+```
+
+## Why
+
+Users report process death bugs as "the app forgot what I was doing" or as a crash nobody can reproduce. The usual checks miss them:
+
+| Check | What it misses |
+| --- | --- |
+| Rotation, `ActivityScenario.recreate()` | The process survives, so ViewModels and singletons keep their data |
+| "Don't keep activities" | Destroys Activities, not the process |
+| Logcat's Stop button, `am kill` by hand | Manual, and easy to do before the state is saved |
+| A scripted kill in a UI test | Passes even when the kill never happened or came too early |
+
+`pdcheck` does the kill in the right order and proves it worked:
+
+1. Records the foreground screen, its task and process IDs, the text in its fields and the state of its toggles.
+2. Presses Home and waits until `dumpsys activity` reports every Activity of the task as stopped **with saved state**. Killing earlier tests a cold start instead.
+3. Kills every process of the app: `run-as <pkg> kill -9` on debuggable builds, `am kill` otherwise.
+4. Waits until the processes are gone and checks that the task survived.
+5. Brings the task back with its root Intent, exactly like tapping the launcher icon.
+6. Fails when the app crashed while restoring, a different screen came back, typed text or toggles changed, or the process ID did not change.
+
+## Install
+
+Requires JDK 17 and `adb` (found through `ANDROID_HOME`, `ANDROID_SDK_ROOT` or `PATH`).
+
+Download `pdcheck-<version>.zip` from [Releases](https://github.com/byfedin/process-death-check/releases), unzip it and run `bin/pdcheck`. To build from source:
+
+```bash
+./gradlew :cli:installDist
+```
+
+```bash
+cli/build/install/pdcheck/bin/pdcheck --help
+```
+
+## Usage
+
+Open the screen you want to check on a device or emulator, fill in a form if you like, then:
+
+```bash
+pdcheck kill -p com.example.app
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `-p, --package` | required | Application ID |
+| `-s, --serial` | the only device | Device serial when several are attached |
+| `--launch` | off | Force-stop and start the launcher Activity first |
+| `--method` | `auto` | `run-as` (debuggable builds), `am-kill` (any build) or `auto` |
+| `--no-ui-compare` | off | Only check crashes, screen and process |
+| `-o, --output` | `pdcheck-reports` | Where reports and screenshots go |
+| `--restore-timeout` | `20000` | Milliseconds to wait for the app to come back |
+
+Exit codes: `0` passed, `1` a problem was found, `2` the check could not run (no device, app not in the foreground, process would not die).
+
+### Reports
+
+Every run writes to the output directory:
+
+- `report.json` with the findings, killed and restored PIDs, and timing;
+- `TEST-process-death-check.xml` in JUnit format, so CI shows a failed check like a failed test;
+- `before.png` and `after.png`, and the `dumpsys` output from just before the kill.
+
+### In CI
+
+Run it after your UI tests have put the app on a screen, or on its own with `--launch`:
+
+```yaml
+- uses: ReactiveCircus/android-emulator-runner@v2
+  with:
+    api-level: 36
+    script: |
+      ./gradlew :app:installDebug
+      pdcheck kill -p com.example.app --launch -o build/pdcheck
+```
+
+## What counts as state
+
+Text in editable fields (Views and Compose text fields), the checked state of checkboxes, switches and other toggles, and selected tabs or chips. Fields are matched by resource ID, then by label, then by position. Password fields are skipped.
+
+Scroll positions, loaded lists and anything the app reloads from the network are out of scope on purpose: reloading them after process death is legitimate. If you keep a list in `SavedStateHandle`, assert it in your own test.
+
+## Limits
+
+- `run-as` works only for debuggable builds. `am kill` works for release builds but only kills a process the system already treats as cached.
+- Apps with several processes are supported; every `pkg:*` process is killed.
+- Screens drawn without accessibility nodes (games, custom canvases, most WebViews) can be checked for crashes, but not for lost input.
+- One check covers one screen. For more screens, run it from your existing UI test setup.
+
+## Try it on the sample
+
+`sample/` is an app whose screens are correct or broken on purpose: a form that keeps its state with `rememberSaveable`, one that uses `remember`, and a screen that reads a `lateinit` singleton set by the previous screen.
+
+```bash
+./gradlew -p sample :app:installDebug
+```
+
+```bash
+./gradlew :e2e:test -Pe2e
+```
+
+The `e2e` tests open each screen, run the check and assert the expected result. CI runs them on API 26 and API 36 emulators.
+
+## Development
+
+```bash
+./gradlew spotlessApply build
+```
+
+`core` holds the parsers and the check and has no dependencies. Its unit tests use real `dumpsys`, `ps`, `logcat` and `uiautomator` output from API 26 and 36, and a scripted device with a virtual clock, so they run in a second and never sleep.
+
+## License
+
+MIT
