@@ -79,7 +79,28 @@ class ProcessDeathCheckTest {
         val android = FakeAndroid(restoredTop = "Main")
         val finding = check(android).findings.single()
         assertIs<Finding.WrongScreen>(finding)
-        assertEquals("app/app.Main", finding.actual)
+        assertEquals("app/app.Main in task #7", finding.actual)
+    }
+
+    @Test
+    fun `the same screen in a new task is reported`() {
+        val android = FakeAndroid(restoredTaskId = 8)
+        val finding = check(android).findings.single()
+        assertIs<Finding.WrongScreen>(finding)
+        assertEquals("app/app.Detail in task #8", finding.actual)
+    }
+
+    @Test
+    fun `unreadable restored window is inconclusive, not lost state`() {
+        val android = FakeAndroid(blankDumpsAfterRestore = Int.MAX_VALUE)
+        val error = assertFailsWith<CheckException> { check(android) }
+        assertTrue(error.message!!.contains("could not read the restored window"))
+    }
+
+    @Test
+    fun `kill reporting an already exited process does not abort the check`() {
+        val android = FakeAndroid(killExitCode = 1)
+        assertTrue(check(android).passed)
     }
 
     @Test
@@ -171,6 +192,8 @@ private class FakeAndroid(
     private val removeTaskOnKill: Boolean = false,
     private val killIgnored: Boolean = false,
     private var blankDumpsAfterRestore: Int = 0,
+    private val restoredTaskId: Int = 7,
+    private val killExitCode: Int = 0,
 ) : Device {
     override val serial = "fake"
     lateinit var clock: VirtualClock
@@ -228,7 +251,7 @@ private class FakeAndroid(
             killedAtMillis = clock.now
             if (removeTaskOnKill) taskExists = false
         }
-        return ok()
+        return CommandResult(killExitCode, if (killExitCode == 0) "" else "kill: No such process")
     }
 
     private fun relaunch(): CommandResult {
@@ -284,7 +307,9 @@ private class FakeAndroid(
             appendLine("      state=$state delayedResume=false finishing=false")
         }
         val resumed =
-            if (foreground) "ActivityRecord{10 u0 app/.${records.first()} t7}"
+            if (foreground && restored && restoredTaskId != 7) {
+                "ActivityRecord{99 u0 app/.${records.first()} t$restoredTaskId}"
+            } else if (foreground) "ActivityRecord{10 u0 app/.${records.first()} t7}"
             else "ActivityRecord{9 u0 launcher/.Home t1}"
         appendLine("  ResumedActivity: $resumed")
     }
