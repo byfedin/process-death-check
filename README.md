@@ -33,7 +33,7 @@ Users report process death bugs as "the app forgot what I was doing" or as a cra
 3. Kills every process of the app: `run-as <pkg> kill -9` on debuggable builds, `am kill` otherwise.
 4. Waits until the processes are gone and checks that the task survived.
 5. Brings the task back with its root Intent, exactly like tapping the launcher icon.
-6. Fails when the app crashed while restoring, a different screen came back, typed text or toggles changed, or the process ID did not change.
+6. Fails when the app crashed while restoring, a different Activity or task came back, or typed text or toggles changed. If the process ID did not change, the kill cannot be proven and the check stops with exit code 2 instead of passing.
 
 ## Install
 
@@ -67,7 +67,7 @@ pdcheck kill -p com.example.app
 | `-o, --output` | `pdcheck-reports` | Where reports and screenshots go |
 | `--restore-timeout` | `20000` | Milliseconds to wait for the app to come back |
 
-Exit codes: `0` passed, `1` a problem was found, `2` the check could not run (no device, app not in the foreground, process would not die).
+Exit codes: `0` passed, `1` a problem was found, `2` the check could not run (no device, app not in the foreground, process would not die, restored window unreadable). A sweep exits with `2` when it could not check a single screen.
 
 ### Sweep: every screen, no script
 
@@ -142,7 +142,7 @@ Run it after your UI tests have put the app on a screen, or on its own with `--l
 
 ## What counts as state
 
-Text in editable fields (Views and Compose text fields), the checked state of checkboxes, switches and other toggles, and selected tabs or chips. Fields are matched by resource ID, then by label, then by position. Password fields are skipped.
+Text in editable fields (Views and Compose text fields), the checked state of checkboxes, switches and other toggles, and selected tabs or chips. Fields are matched by resource ID, then by position. Toggles are matched by resource ID, then by their label, then by position. Password fields are skipped.
 
 Scroll positions, loaded lists and anything the app reloads from the network are out of scope on purpose: reloading them after process death is legitimate. If you keep a list in `SavedStateHandle`, assert it in your own test.
 
@@ -150,6 +150,7 @@ Scroll positions, loaded lists and anything the app reloads from the network are
 
 - `run-as` works only for debuggable builds. `am kill` works for release builds but only kills a process the system already treats as cached.
 - Apps with several processes are supported; every `pkg:*` process is killed.
+- In a single-Activity app, `kill` compares the Activity and task, not the Compose destination. Coming back to the start destination is caught only when a field or toggle on the lost screen had a value. A sweep labels destinations separately, but each check has the same limit.
 - Screens drawn without accessibility nodes (games, custom canvases, most WebViews) can be checked for crashes, but not for lost input.
 - `kill` covers one screen. `sweep` reaches only what taps can reach: screens behind sign-in, typed input or deep links need `kill` from your own setup.
 
