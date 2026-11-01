@@ -12,4 +12,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "process-death-check"
 
-include(":core", ":cli")
+include(":core", ":cli", ":e2e")
