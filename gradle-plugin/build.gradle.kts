@@ -1,3 +1,4 @@
+import javax.inject.Inject
 import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 
 plugins {
@@ -15,9 +16,26 @@ kotlin {
     }
 }
 
+// core is not published on its own, so its classes ship inside the plugin jar.
+val bundled: Configuration by configurations.creating { isTransitive = false }
+
 dependencies {
-    implementation(project(":core"))
+    compileOnly(project(":core"))
+    bundled(project(":core"))
     compileOnly(libs.agp.api)
+    // Gradle provides the Kotlin runtime to plugins.
+    compileOnly(kotlin("stdlib"))
+}
+
+interface Injected {
+    @get:Inject val archives: ArchiveOperations
+}
+
+tasks.jar {
+    // Locals only: the configuration cache cannot store references to the build script.
+    val archives = objects.newInstance<Injected>().archives
+    val jars = bundled.elements
+    from(jars.map { files -> files.map { archives.zipTree(it) } })
 }
 
 gradlePlugin {
