@@ -58,23 +58,12 @@ public class AdbDevice(
     }
 
     private fun run(arguments: List<String>): CommandResult {
-        val process =
-            ProcessBuilder(listOf(adb.toString(), "-s", serial) + arguments)
-                .redirectErrorStream(true)
-                .start()
-        // Drain output on another thread: a full pipe would block adb, and a hung adb that never
-        // closes its output must still hit the timeout.
-        var output = ""
-        val reader =
-            thread(isDaemon = true) { output = process.inputStream.bufferedReader().readText() }
-        if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
-            process.destroyForcibly()
-            throw DeviceException(
-                "adb timed out after ${timeoutSeconds}s: ${arguments.joinToString(" ")}"
-            )
-        }
-        reader.join()
-        return CommandResult(process.exitValue(), output)
+        val result =
+            runProcess(listOf(adb.toString(), "-s", serial) + arguments, timeoutSeconds)
+                ?: throw DeviceException(
+                    "adb timed out after ${timeoutSeconds}s: ${arguments.joinToString(" ")}"
+                )
+        return CommandResult(result.exitCode, result.stdout + result.stderr)
     }
 
     public companion object {
@@ -112,15 +101,24 @@ public class AdbDevice(
         ): AdbDevice {
             val selected = serial ?: environment["ANDROID_SERIAL"]?.takeIf { it.isNotBlank() }
             if (selected != null) {
-                val state = adbOutput(adb, "-s", selected, "get-state").trim()
-                if (state != "device") {
-                    throw DeviceException("Device $selected is not available: $state")
+                // stdout carries only the state; "daemon started" notes go to stderr.
+                var state = adbOutput(adb, "-s", selected, "get-state")
+                // A freshly started adb server reports devices as offline for a few seconds.
+                repeat(OFFLINE_RETRIES) {
+                    if (!state.stderr.contains("offline")) return@repeat
+                    Thread.sleep(OFFLINE_RETRY_MILLIS)
+                    state = adbOutput(adb, "-s", selected, "get-state")
+                }
+                if (state.stdout.trim().lines().lastOrNull() != "device") {
+                    throw DeviceException(
+                        "Device $selected is not available: " + (state.stderr + state.stdout).trim()
+                    )
                 }
                 return AdbDevice(adb, selected)
             }
-            val output = adbOutput(adb, "devices")
             val devices =
-                output
+                adbOutput(adb, "devices")
+                    .stdout
                     .lines()
                     .drop(1)
                     .map { it.trim().split(Regex("\\s+")) }
@@ -139,12 +137,34 @@ public class AdbDevice(
             }
         }
 
-        private fun adbOutput(adb: Path, vararg arguments: String): String {
-            val process =
-                ProcessBuilder(listOf(adb.toString()) + arguments).redirectErrorStream(true).start()
-            val output = process.inputStream.bufferedReader().readText()
-            process.waitFor(30, TimeUnit.SECONDS)
-            return output
-        }
+        private const val OFFLINE_RETRIES = 10
+        private const val OFFLINE_RETRY_MILLIS = 1_000L
+
+        private fun adbOutput(adb: Path, vararg arguments: String): ProcessOutput =
+            runProcess(listOf(adb.toString()) + arguments, timeoutSeconds = 30)
+                ?: throw DeviceException("adb timed out: ${arguments.joinToString(" ")}")
     }
+}
+
+internal class ProcessOutput(val exitCode: Int, val stdout: String, val stderr: String)
+
+/**
+ * Runs [command] and returns null on timeout. Both streams are drained on their own threads: a full
+ * pipe would block the child, and a hung adb that never closes its output must still time out.
+ */
+internal fun runProcess(command: List<String>, timeoutSeconds: Long): ProcessOutput? {
+    val process = ProcessBuilder(command).start()
+    var stdout = ""
+    var stderr = ""
+    val readers =
+        listOf(
+            thread(isDaemon = true) { stdout = process.inputStream.bufferedReader().readText() },
+            thread(isDaemon = true) { stderr = process.errorStream.bufferedReader().readText() },
+        )
+    if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        return null
+    }
+    readers.forEach { it.join() }
+    return ProcessOutput(process.exitValue(), stdout, stderr)
 }
