@@ -32,7 +32,12 @@ class PdcheckPlugin : Plugin<Project> {
                     task.reportsDir.set(
                         project.layout.buildDirectory.dir("reports/pdcheck/${variant.name}")
                     )
-                    task.dependsOn("install$suffix")
+                    // Unsigned variants have no install task. Without it the sweep would test
+                    // whatever build is installed, so the task refuses to run instead.
+                    val install = "install$suffix"
+                    task.variantName.set(variant.name)
+                    task.installable.set(project.provider { install in project.tasks.names })
+                    task.dependsOn(project.tasks.matching { it.name == install })
                 }
             }
         }

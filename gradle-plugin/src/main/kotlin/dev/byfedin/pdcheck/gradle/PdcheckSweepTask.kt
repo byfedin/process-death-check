@@ -23,6 +23,11 @@ import org.gradle.api.tasks.UntrackedTask
 abstract class PdcheckSweepTask : DefaultTask() {
     @get:Input abstract val applicationId: Property<String>
 
+    @get:Input abstract val variantName: Property<String>
+
+    /** False for variants AGP cannot install, usually unsigned release builds. */
+    @get:Input abstract val installable: Property<Boolean>
+
     @get:Internal abstract val adb: RegularFileProperty
 
     @get:Input @get:Optional abstract val serial: Property<String>
@@ -41,6 +46,12 @@ abstract class PdcheckSweepTask : DefaultTask() {
 
     @TaskAction
     fun sweep() {
+        if (!installable.get()) {
+            throw GradleException(
+                "Variant ${variantName.get()} cannot be installed, usually because it has no " +
+                    "signing config. Sign it or run the sweep on a debug variant."
+            )
+        }
         val output = reportsDir.get().asFile.toPath()
         val sweep =
             try {
