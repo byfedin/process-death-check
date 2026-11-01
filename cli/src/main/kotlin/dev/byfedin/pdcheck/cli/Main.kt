@@ -11,6 +11,7 @@ import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.versionOption
 import com.github.ajalt.clikt.parameters.types.enum
+import com.github.ajalt.clikt.parameters.types.int
 import com.github.ajalt.clikt.parameters.types.long
 import com.github.ajalt.clikt.parameters.types.path
 import dev.byfedin.pdcheck.AdbDevice
@@ -21,6 +22,8 @@ import dev.byfedin.pdcheck.CheckResult
 import dev.byfedin.pdcheck.DeviceException
 import dev.byfedin.pdcheck.KillMethod
 import dev.byfedin.pdcheck.ProcessDeathCheck
+import dev.byfedin.pdcheck.Sweep
+import dev.byfedin.pdcheck.SweepOptions
 import dev.byfedin.pdcheck.report.Reports
 import java.nio.file.Path
 
@@ -81,39 +84,99 @@ private class Kill : CliktCommand(name = "kill") {
                         )
                     )
             } catch (failure: CheckException) {
-                fail(failure.message)
+                failWith(failure.message)
             } catch (failure: DeviceException) {
-                fail(failure.message)
+                failWith(failure.message)
             }
         Reports.write(listOf(result), output)
-        print(result)
+        printResult(result)
         echo("Reports: ${output.toAbsolutePath().normalize()}")
         if (!result.passed) throw ProgramResult(1)
     }
+}
 
-    private fun print(result: CheckResult) {
-        if (result.passed) {
-            echo(
-                "PASS ${result.screen} restored in a new process " +
-                    "(${result.killedPids.joinToString()} -> ${result.restoredPid})"
-            )
-            return
-        }
-        echo("FAIL ${result.screen}", err = true)
-        for (finding in result.findings) {
-            echo("  - ${finding.title}", err = true)
-            finding.details.lines().take(MAX_DETAIL_LINES).forEach { echo("      $it", err = true) }
-        }
-    }
+private class SweepCommand : CliktCommand(name = "sweep") {
+    override fun help(context: Context) =
+        """
+        Starts the app, taps through the screens it can reach and runs the process death check
+        on each one. Also reports crashes caused by the taps themselves.
 
-    private fun fail(message: String?): Nothing {
-        echo("error: $message", err = true)
-        throw ProgramResult(2)
-    }
+        Taps are chosen with a seeded random order, so a run can be repeated with --seed.
+        """
+            .trimIndent()
 
-    private companion object {
-        const val MAX_DETAIL_LINES = 12
+    private val packageName by option("-p", "--package", help = "Application ID").required()
+    private val serial by option("-s", "--serial", help = "Device serial when several are attached")
+    private val maxChecks by option(help = "Stop after this many screen checks").int().default(20)
+    private val maxActions by option(help = "Stop after this many taps").int().default(60)
+    private val seed by option(help = "Seed for the tap order").int().default(1)
+    private val method by
+        option("--method", help = "How to kill the process")
+            .enum<KillMethod> { it.name.lowercase().replace('_', '-') }
+            .default(KillMethod.AUTO)
+    private val noUiCompare by
+        option("--no-ui-compare", help = "Skip comparing text fields and toggles").flag()
+    private val output by
+        option("-o", "--output", help = "Directory for report.json, JUnit XML and screenshots")
+            .path()
+            .default(Path.of("pdcheck-reports"))
+
+    override fun run() {
+        val sweep =
+            try {
+                val device = AdbDevice.connect(AdbDevice.locateAdb(), serial)
+                val shell = AndroidShell(device)
+                if (!shell.isInstalled(packageName)) {
+                    throw CheckException("$packageName is not installed on ${device.serial}.")
+                }
+                Sweep(shell, log = { echo("  $it") })
+                    .run(
+                        SweepOptions(
+                            packageName = packageName,
+                            maxChecks = maxChecks,
+                            maxActions = maxActions,
+                            seed = seed,
+                            killMethod = method,
+                            compareUi = !noUiCompare,
+                            artifactsDir = output,
+                        )
+                    )
+            } catch (failure: CheckException) {
+                failWith(failure.message)
+            } catch (failure: DeviceException) {
+                failWith(failure.message)
+            }
+        Reports.write(sweep.results, output)
+        echo("")
+        for (result in sweep.results) printResult(result)
+        val failed = sweep.results.count { !it.passed }
+        echo(
+            "${sweep.results.size} checks on ${sweep.screens} screens after ${sweep.actions} actions: " +
+                if (failed == 0) "all passed" else "$failed failed"
+        )
+        echo("Reports: ${output.toAbsolutePath().normalize()}")
+        if (failed > 0) throw ProgramResult(1)
     }
 }
 
-fun main(args: Array<String>) = Pdcheck().subcommands(Kill()).main(args)
+private fun CliktCommand.printResult(result: CheckResult) {
+    if (result.passed) {
+        val pids = result.restoredPid?.let { " (${result.killedPids.joinToString()} -> $it)" } ?: ""
+        echo("PASS ${result.name}$pids")
+        return
+    }
+    echo("FAIL ${result.name}", err = true)
+    for (finding in result.findings) {
+        echo("  - ${finding.title}", err = true)
+        finding.details.lines().take(MAX_DETAIL_LINES).forEach { echo("      $it", err = true) }
+    }
+}
+
+private fun CliktCommand.failWith(message: String?): Nothing {
+    echo("error: $message", err = true)
+    throw ProgramResult(2)
+}
+
+private const val MAX_DETAIL_LINES = 12
+
+fun main(args: Array<String>) = Pdcheck().subcommands(Kill(), SweepCommand()).main(args)
