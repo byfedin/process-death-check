@@ -69,6 +69,56 @@ pdcheck kill -p com.example.app
 
 Exit codes: `0` passed, `1` a problem was found, `2` the check could not run (no device, app not in the foreground, process would not die).
 
+### Sweep: every screen, no script
+
+`sweep` starts the app, taps through the screens it can reach and runs the check on each one. A screen is checked when it first appears and again after a toggle on it changed, because untouched screens rarely lose anything. Crashes caused by the taps themselves are reported too.
+
+```text
+$ pdcheck sweep -p dev.byfedin.pdcheck.sample
+PASS MainActivity: pdcheck sample (11697 -> 11817)
+PASS SavedFormActivity: Saved form (11817 -> 12004)
+PASS SavedFormActivity: Saved form (after input) (12004 -> 12186)
+FAIL SessionActivity: Signed in as demo
+  - Crash while restoring: kotlin.UninitializedPropertyAccessException: lateinit property user has not been initialized
+PASS ForgetfulFormActivity: Forgetful form (12467 -> 12626)
+FAIL ForgetfulFormActivity: Forgetful form (after input)
+  - UI state lost after process death (1)
+      toggle:Urgent: "checked" -> "unchecked"
+6 checks on 4 screens after 7 actions: 2 failed
+```
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `--max-checks` | `20` | Stop after this many screen checks |
+| `--max-actions` | `60` | Stop after this many taps and Back presses |
+| `--seed` | `1` | Tap order; the same seed repeats the same path |
+
+`--package`, `--serial`, `--method`, `--no-ui-compare` and `--output` work as in `kill`.
+
+The sweep taps clickable elements of your app only and never types. Screens are told apart by the foreground Activity and the labels of their clickable elements, so in a single-Activity Compose app each destination counts as its own screen. Run it on a test account: it presses whatever buttons it finds.
+
+### Gradle plugin
+
+The plugin adds `pdcheckSweep<Variant>` to Android application modules. It installs the variant, finds `adb` through the Android SDK and writes reports to `build/reports/pdcheck/<variant>/`.
+
+```kotlin
+plugins {
+    id("com.android.application")
+    id("dev.byfedin.pdcheck")
+}
+
+pdcheck {
+    maxChecks = 30
+    failOnFindings = true
+}
+```
+
+```bash
+./gradlew :app:pdcheckSweepDebug
+```
+
+The plugin is not on the Gradle Plugin Portal yet. Until it is, clone this repository and add it to your build with `includeBuild("path/to/process-death-check")` in the `pluginManagement` block of `settings.gradle.kts`, as `sample/` does.
+
 ### Reports
 
 Every run writes to the output directory:
@@ -101,7 +151,7 @@ Scroll positions, loaded lists and anything the app reloads from the network are
 - `run-as` works only for debuggable builds. `am kill` works for release builds but only kills a process the system already treats as cached.
 - Apps with several processes are supported; every `pkg:*` process is killed.
 - Screens drawn without accessibility nodes (games, custom canvases, most WebViews) can be checked for crashes, but not for lost input.
-- One check covers one screen. For more screens, run it from your existing UI test setup.
+- `kill` covers one screen. `sweep` reaches only what taps can reach: screens behind sign-in, typed input or deep links need `kill` from your own setup.
 
 ## Try it on the sample
 
@@ -115,7 +165,7 @@ Scroll positions, loaded lists and anything the app reloads from the network are
 ./gradlew :e2e:test -Pe2e
 ```
 
-The `e2e` tests open each screen, run the check and assert the expected result. CI runs them on API 26 and API 36 emulators.
+The `e2e` tests open each screen, run the check and assert the expected result, then run a sweep and assert that it finds both broken screens. CI runs them on API 26 and API 36 emulators.
 
 ## Development
 
@@ -123,7 +173,7 @@ The `e2e` tests open each screen, run the check and assert the expected result. 
 ./gradlew spotlessApply build
 ```
 
-`core` holds the parsers and the check and has no dependencies. Its unit tests use real `dumpsys`, `ps`, `logcat` and `uiautomator` output from API 26 and 36, and a scripted device with a virtual clock, so they run in a second and never sleep.
+`core` holds the parsers, the check and the sweep, and has no dependencies. `cli` and `gradle-plugin` are thin wrappers around it. Its unit tests use real `dumpsys`, `ps`, `logcat` and `uiautomator` output from API 26 and 36, and a scripted device with a virtual clock, so they run in a second and never sleep.
 
 ## License
 
