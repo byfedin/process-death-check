@@ -3,6 +3,7 @@ package dev.byfedin.pdcheck
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 public data class CommandResult(val exitCode: Int, val output: String) {
     val succeeded: Boolean
@@ -61,14 +62,18 @@ public class AdbDevice(
             ProcessBuilder(listOf(adb.toString(), "-s", serial) + arguments)
                 .redirectErrorStream(true)
                 .start()
-        // Read before waiting: a full pipe buffer would otherwise block the child forever.
-        val output = process.inputStream.bufferedReader().readText()
+        // Drain output on another thread: a full pipe would block adb, and a hung adb that never
+        // closes its output must still hit the timeout.
+        var output = ""
+        val reader =
+            thread(isDaemon = true) { output = process.inputStream.bufferedReader().readText() }
         if (!process.waitFor(timeoutSeconds, TimeUnit.SECONDS)) {
             process.destroyForcibly()
             throw DeviceException(
                 "adb timed out after ${timeoutSeconds}s: ${arguments.joinToString(" ")}"
             )
         }
+        reader.join()
         return CommandResult(process.exitValue(), output)
     }
 
@@ -97,15 +102,23 @@ public class AdbDevice(
         }
 
         /**
-         * Connects to [serial], or to the only attached device when [serial] is null. Several
+         * Connects to [serial], then to `ANDROID_SERIAL`, then to the only attached device. Several
          * devices without a serial is an error rather than a guess.
          */
-        public fun connect(adb: Path, serial: String?): AdbDevice {
-            if (serial != null) return AdbDevice(adb, serial)
-            val process =
-                ProcessBuilder(adb.toString(), "devices").redirectErrorStream(true).start()
-            val output = process.inputStream.bufferedReader().readText()
-            process.waitFor(30, TimeUnit.SECONDS)
+        public fun connect(
+            adb: Path,
+            serial: String?,
+            environment: Map<String, String> = System.getenv(),
+        ): AdbDevice {
+            val selected = serial ?: environment["ANDROID_SERIAL"]?.takeIf { it.isNotBlank() }
+            if (selected != null) {
+                val state = adbOutput(adb, "-s", selected, "get-state").trim()
+                if (state != "device") {
+                    throw DeviceException("Device $selected is not available: $state")
+                }
+                return AdbDevice(adb, selected)
+            }
+            val output = adbOutput(adb, "devices")
             val devices =
                 output
                     .lines()
@@ -124,6 +137,14 @@ public class AdbDevice(
                         "Several devices attached (${devices.joinToString()}). Pass --serial."
                     )
             }
+        }
+
+        private fun adbOutput(adb: Path, vararg arguments: String): String {
+            val process =
+                ProcessBuilder(listOf(adb.toString()) + arguments).redirectErrorStream(true).start()
+            val output = process.inputStream.bufferedReader().readText()
+            process.waitFor(30, TimeUnit.SECONDS)
+            return output
         }
     }
 }

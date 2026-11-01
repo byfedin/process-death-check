@@ -17,13 +17,7 @@ import kotlin.test.assertTrue
 
 /** Runs the real check against the sample app, whose screens are correct or broken on purpose. */
 class SampleAppTest {
-    private val shell =
-        AndroidShell(
-            AdbDevice.connect(
-                AdbDevice.locateAdb(),
-                System.getenv("ANDROID_SERIAL")?.takeIf { it.isNotBlank() },
-            )
-        )
+    private val shell = AndroidShell(AdbDevice.connect(AdbDevice.locateAdb(), serial = null))
 
     @Test
     fun `saved form survives process death`() {

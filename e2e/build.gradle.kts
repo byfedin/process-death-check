@@ -14,6 +14,6 @@ tasks.test {
     useJUnitPlatform()
     // Needs a device with the sample installed: ./gradlew -p sample :app:installDebug
     enabled = providers.gradleProperty("e2e").isPresent
-    environment("ANDROID_SERIAL", providers.gradleProperty("serial").getOrElse(""))
+    providers.gradleProperty("serial").orNull?.let { environment("ANDROID_SERIAL", it) }
     outputs.upToDateWhen { false }
 }
