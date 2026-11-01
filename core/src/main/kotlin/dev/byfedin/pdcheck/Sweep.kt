@@ -47,9 +47,14 @@ public class Sweep(
         val touched = mutableSetOf<String>()
         val targetsOf = mutableMapOf<String, Set<String>>()
         var actions = 0
+        // Skipped checks count too, or a screen with changing labels that never saves state
+        // would be retried forever.
+        var attempts = 0
+        // logcat -T has one-second resolution, so a crash can show up again for the next action.
+        val reported = mutableSetOf<Int>()
 
         shell.launchFresh(packageName, clock)
-        while (actions < options.maxActions && results.size < options.maxChecks) {
+        while (actions < options.maxActions && attempts < options.maxChecks) {
             if (!shell.activities().isResumed(packageName)) {
                 // A tap opened another app or closed the last Activity.
                 shell.launchFresh(packageName, clock)
@@ -61,6 +66,7 @@ public class Sweep(
             val checkKey = if (screen.id in touched) "${screen.id}+touched" else screen.id
             if (checkKey !in checked) {
                 checked += checkKey
+                attempts++
                 val label =
                     if (checkKey.endsWith("+touched")) "${screen.title} (after input)"
                     else screen.title
@@ -72,15 +78,22 @@ public class Sweep(
                                 packageName,
                                 killMethod = options.killMethod,
                                 compareUi = options.compareUi,
-                                artifactsDir =
-                                    options.artifactsDir?.resolve("check-${results.size + 1}"),
+                                artifactsDir = options.artifactsDir?.resolve("check-$attempts"),
                             )
                         )
                     } catch (failure: CheckException) {
                         log("Skipped $label: ${failure.message}")
                         shell.launchFresh(packageName, clock)
                         continue
+                    } catch (failure: DeviceException) {
+                        // One adb hiccup should not throw away the checks already done.
+                        log("Skipped $label: ${failure.message}")
+                        shell.launchFresh(packageName, clock)
+                        continue
                     }
+                result.findings.filterIsInstance<Finding.CrashOnRestore>().forEach {
+                    reported += it.crash.pid
+                }
                 results += result.copy(name = label)
                 if (!result.passed) shell.launchFresh(packageName, clock)
                 continue
@@ -104,8 +117,10 @@ public class Sweep(
             actions++
             log(action.replaceFirstChar { it.uppercase() })
             clock.sleep(options.settleMillis)
-            val crash = shell.crashesSince(logcatFrom, packageName).firstOrNull()
+            val crash =
+                shell.crashesSince(logcatFrom, packageName).firstOrNull { it.pid !in reported }
             if (crash != null) {
+                reported += crash.pid
                 results += crashResult(packageName, screen, action, crash)
                 shell.launchFresh(packageName, clock)
                 continue
@@ -115,6 +130,13 @@ public class Sweep(
                 log("Every reachable element was tried")
                 break
             }
+        }
+        if (results.isEmpty()) {
+            // Reporting "all passed" for zero checks would hide that nothing was tested.
+            throw CheckException(
+                "The sweep could not check any screen of $packageName. " +
+                    "Is its UI visible to uiautomator?"
+            )
         }
         return SweepResult(results, actions, seen.size)
     }
