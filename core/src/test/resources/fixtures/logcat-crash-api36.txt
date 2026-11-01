@@ -1,0 +1,26 @@
+--------- beginning of crash
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: FATAL EXCEPTION: main
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: Process: dev.byfedin.pdcheck.sample, PID: 5605
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: java.lang.RuntimeException: Unable to start activity ComponentInfo{dev.byfedin.pdcheck.sample/dev.byfedin.pdcheck.sample.SessionActivity}: kotlin.UninitializedPropertyAccessException: lateinit property user has not been initialized
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4280)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.ActivityThread.handleLaunchActivity(ActivityThread.java:4467)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.servertransaction.LaunchActivityItem.execute(LaunchActivityItem.java:222)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeNonLifecycleItem(TransactionExecutor.java:133)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.executeTransactionItems(TransactionExecutor.java:103)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.servertransaction.TransactionExecutor.execute(TransactionExecutor.java:80)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.ActivityThread$H.handleMessage(ActivityThread.java:2823)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.os.Handler.dispatchMessage(Handler.java:110)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.os.Looper.loopOnce(Looper.java:248)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.os.Looper.loop(Looper.java:338)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.ActivityThread.main(ActivityThread.java:9067)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at java.lang.reflect.Method.invoke(Native Method)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at com.android.internal.os.RuntimeInit$MethodAndArgsCaller.run(RuntimeInit.java:593)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at com.android.internal.os.ZygoteInit.main(ZygoteInit.java:932)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: Caused by: kotlin.UninitializedPropertyAccessException: lateinit property user has not been initialized
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at dev.byfedin.pdcheck.sample.Session.getUser(Session.kt:5)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at dev.byfedin.pdcheck.sample.SessionActivity.onCreate(SessionActivity.kt:17)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:9155)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.Activity.performCreate(Activity.java:9133)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.Instrumentation.callActivityOnCreate(Instrumentation.java:1521)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	at android.app.ActivityThread.performLaunchActivity(ActivityThread.java:4262)
+11-01 23:57:37.582  5605  5605 E AndroidRuntime: 	... 13 more

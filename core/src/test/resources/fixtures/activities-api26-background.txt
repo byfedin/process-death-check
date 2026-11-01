@@ -1,0 +1,134 @@
+ACTIVITY MANAGER ACTIVITIES (dumpsys activity activities)
+Display #0 (activities from top to bottom):
+  Stack #0:
+  mFullscreen=true
+  mBounds=null
+    Task id #5
+    mFullscreen=true
+    mBounds=null
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{24e5d3f #5 I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity U=0 StackId=0 sz=1}
+      userId=0 effectiveUid=u0a23 mCallingUid=1000 mUserSetupComplete=true mCallingPackage=android
+      intent={act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000100 cmp=com.google.android.apps.nexuslauncher/.NexusLauncherActivity}
+      realActivity=com.google.android.apps.nexuslauncher/.NexusLauncherActivity
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 taskType=1 mTaskToReturnTo=0
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{a77dc7d u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      lastThumbnail=null lastThumbnailFile=/data/system_ce/0/recent_images/5_task_thumbnail.png
+      stackId=0
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_RESIZEABLE mSupportsPictureInPicture=false isResizeable=true firstActiveTime=1793530967147 lastActiveTime=1793530967147 (inactive for 0s)
+      * Hist #0: ActivityRecord{a77dc7d u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}
+          packageName=com.google.android.apps.nexuslauncher processName=com.google.android.apps.nexuslauncher
+          launchedFromUid=0 launchedFromPackage=null userId=0
+          app=ProcessRecord{8f7baa9 2572:com.google.android.apps.nexuslauncher/u0a23}
+          Intent { act=android.intent.action.MAIN cat=[android.intent.category.HOME] flg=0x10000100 cmp=com.google.android.apps.nexuslauncher/.NexusLauncherActivity }
+          frontOfTask=true task=TaskRecord{24e5d3f #5 I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity U=0 StackId=0 sz=1}
+          taskAffinity=null
+          realActivity=com.google.android.apps.nexuslauncher/.NexusLauncherActivity
+          baseDir=/system/priv-app/NexusLauncherPrebuilt/NexusLauncherPrebuilt.apk
+          dataDir=/data/user/0/com.google.android.apps.nexuslauncher
+          stateNotNeeded=true componentSpecified=false mActivityType=1
+          compat={420dpi} labelRes=0x7f0c0089 icon=0x7f020040 theme=0x7f120001
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h659dp 420dpi nrml port finger -keyb/v/h -nav/h appBounds=Rect(0, 0 - 1080, 1794) s.7}
+           mOverrideConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h659dp 420dpi nrml port finger -keyb/v/h -nav/h appBounds=Rect(0, 0 - 1080, 1794) s.7}
+          CurrentConfiguration={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h659dp 420dpi nrml port finger -keyb/v/h -nav/h appBounds=Rect(0, 0 - 1080, 1794) s.7}
+          taskDescription: iconFilename=null label="null" primaryColor=fff5f5f5
+           backgroundColor=fffafafa
+           statusBarColor=0
+           navigationBarColor=0
+          launchFailed=false launchCount=0 lastLaunchTime=-2m5s821ms
+          haveState=false icicle=null
+          state=RESUMED stopped=false delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=true sleeping=false idle=false mStartingWindowState=STARTING_WINDOW_REMOVED
+          fullscreen=true noDisplay=false immersive=false launchMode=2
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=HOME_ACTIVITY_TYPE
+          waitingVisible=false nowVisible=false lastVisibleTime=-23s683ms
+          connections=[ConnectionRecord{9b4330 u0 CR IMP com.google.android.googlequicksearchbox/com.google.android.apps.gsa.nowoverlayservice.DrawerOverlayService:@e163873}]
+          resizeMode=RESIZE_MODE_RESIZEABLE
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+    Running activities (most recent first):
+      TaskRecord{24e5d3f #5 I=com.google.android.apps.nexuslauncher/.NexusLauncherActivity U=0 StackId=0 sz=1}
+        Run #0: ActivityRecord{a77dc7d u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}
+
+    mResumedActivity: ActivityRecord{a77dc7d u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}
+
+  Stack #1:
+  mFullscreen=true
+  mBounds=null
+    Task id #18
+    mFullscreen=true
+    mBounds=null
+    mMinWidth=-1
+    mMinHeight=-1
+    mLastNonFullscreenBounds=null
+    * TaskRecord{d0ce6e1 #18 A=dev.byfedin.offercatalog U=0 StackId=1 sz=1}
+      userId=0 effectiveUid=u0a79 mCallingUid=2000 mUserSetupComplete=true mCallingPackage=null
+      affinity=dev.byfedin.offercatalog
+      intent={act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10008000 cmp=dev.byfedin.offercatalog/.MainActivity}
+      realActivity=dev.byfedin.offercatalog/.MainActivity
+      autoRemoveRecents=false isPersistable=true numFullscreen=1 taskType=0 mTaskToReturnTo=1
+      rootWasReset=false mNeverRelinquishIdentity=true mReuseTask=false mLockTaskAuth=LOCK_TASK_AUTH_PINNABLE
+      Activities=[ActivityRecord{25af34b u0 dev.byfedin.offercatalog/.MainActivity t18}]
+      askedCompatMode=false inRecents=true isAvailable=true
+      lastThumbnail=null lastThumbnailFile=/data/system_ce/0/recent_images/18_task_thumbnail.png
+      stackId=1
+      hasBeenVisible=true mResizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION mSupportsPictureInPicture=false isResizeable=true firstActiveTime=1793530967144 lastActiveTime=1793530967144 (inactive for 0s)
+      * Hist #0: ActivityRecord{25af34b u0 dev.byfedin.offercatalog/.MainActivity t18}
+          packageName=dev.byfedin.offercatalog processName=dev.byfedin.offercatalog
+          launchedFromUid=2000 launchedFromPackage=null userId=0
+          app=ProcessRecord{fdd0c06 5378:dev.byfedin.offercatalog/u0a79}
+          Intent { act=android.intent.action.MAIN cat=[android.intent.category.LAUNCHER] flg=0x10008000 cmp=dev.byfedin.offercatalog/.MainActivity }
+          frontOfTask=true task=TaskRecord{d0ce6e1 #18 A=dev.byfedin.offercatalog U=0 StackId=1 sz=1}
+          taskAffinity=dev.byfedin.offercatalog
+          realActivity=dev.byfedin.offercatalog/.MainActivity
+          baseDir=/data/app/dev.byfedin.offercatalog-WFEl_w_1mdwWJNOzYhpNYw==/base.apk
+          dataDir=/data/user/0/dev.byfedin.offercatalog
+          stateNotNeeded=false componentSpecified=true mActivityType=0
+          compat={420dpi} labelRes=0x7f080005 icon=0x7f040008 theme=0x7f090009
+          mLastReportedConfigurations:
+           mGlobalConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h659dp 420dpi nrml port finger -keyb/v/h -nav/h appBounds=Rect(0, 0 - 1080, 1794) s.7}
+           mOverrideConfig={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h659dp 420dpi nrml port finger -keyb/v/h -nav/h appBounds=Rect(0, 0 - 1080, 1794) s.7}
+          CurrentConfiguration={1.0 310mcc260mnc [en_US] ldltr sw411dp w411dp h659dp 420dpi nrml port finger -keyb/v/h -nav/h appBounds=Rect(0, 0 - 1080, 1794) s.7}
+          taskDescription: iconFilename=null label="null" primaryColor=fff5f5f5
+           backgroundColor=fffafafa
+           statusBarColor=ff757575
+           navigationBarColor=ff000000
+          launchFailed=false launchCount=0 lastLaunchTime=-10s992ms
+          haveState=true icicle=Bundle[mParcelledData.dataSize=4008]
+          state=STOPPED stopped=true delayedResume=false finishing=false
+          keysPaused=false inHistory=true visible=false sleeping=false idle=true mStartingWindowState=STARTING_WINDOW_REMOVED
+          fullscreen=true noDisplay=false immersive=false launchMode=0
+          frozenBeforeDestroy=false forceNewConfig=false
+          mActivityType=APPLICATION_ACTIVITY_TYPE
+          waitingVisible=false nowVisible=false lastVisibleTime=-9s762ms
+          resizeMode=RESIZE_MODE_RESIZEABLE_VIA_SDK_VERSION
+          mLastReportedMultiWindowMode=false mLastReportedPictureInPictureMode=false
+
+    Running activities (most recent first):
+      TaskRecord{d0ce6e1 #18 A=dev.byfedin.offercatalog U=0 StackId=1 sz=1}
+        Run #0: ActivityRecord{25af34b u0 dev.byfedin.offercatalog/.MainActivity t18}
+
+    mLastPausedActivity: ActivityRecord{25af34b u0 dev.byfedin.offercatalog/.MainActivity t18}
+
+  ResumedActivity: ActivityRecord{a77dc7d u0 com.google.android.apps.nexuslauncher/.NexusLauncherActivity t5}
+  mFocusedStack=ActivityStack{d6c22c7 stackId=0, 1 tasks} mLastFocusedStack=ActivityStack{d6c22c7 stackId=0, 1 tasks}
+  mSleepTimeout=false
+  mCurTaskIdForUser={0=18}
+  mUserStackInFront={}
+  mActivityContainers={0=ActivtyContainer{0}A, 1=ActivtyContainer{1}A}
+  mLockTaskModeState=NONE  mLockTaskPackages (userId:packages)=
+    0:[]
+ mLockTaskModeTasks[]
+  KeyguardController:
+    mKeyguardShowing=false
+    mKeyguardGoingAway=false
+    mOccluded=false
+    mDismissingKeyguardActivity=null
+    mDismissalRequested=false
+    mVisibilityTransactionDepth=0
