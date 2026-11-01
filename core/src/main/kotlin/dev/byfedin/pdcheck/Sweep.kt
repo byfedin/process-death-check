@@ -104,15 +104,16 @@ public class Sweep(
             actions++
             log(action.replaceFirstChar { it.uppercase() })
             clock.sleep(options.settleMillis)
-            val explored = targetsOf.all { (id, keys) -> tried[id].orEmpty().containsAll(keys) }
-            if (untried.isEmpty() && explored && !shell.activities().isResumed(packageName)) {
-                log("Every reachable element was tried")
-                break
-            }
             val crash = shell.crashesSince(logcatFrom, packageName).firstOrNull()
             if (crash != null) {
                 results += crashResult(packageName, screen, action, crash)
                 shell.launchFresh(packageName, clock)
+                continue
+            }
+            val explored = targetsOf.all { (id, keys) -> tried[id].orEmpty().containsAll(keys) }
+            if (untried.isEmpty() && explored && !shell.activities().isResumed(packageName)) {
+                log("Every reachable element was tried")
+                break
             }
         }
         return SweepResult(results, actions, seen.size)
@@ -121,7 +122,7 @@ public class Sweep(
     private fun currentScreen(packageName: String): Screen? {
         val activity =
             shell.activities().resumed.firstOrNull { it.packageName == packageName } ?: return null
-        val root = shell.uiHierarchy() ?: return null
+        val root = shell.awaitUi(packageName, clock) ?: return null
         val nodes = root.flatten().filter { it.packageName == packageName }.toList()
         val targets =
             nodes
