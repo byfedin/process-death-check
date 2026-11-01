@@ -53,6 +53,8 @@ abstract class PdcheckSweepTask : DefaultTask() {
             )
         }
         val output = reportsDir.get().asFile.toPath()
+        // Screenshots from an earlier run must not sit next to this run's report.
+        reportsDir.get().asFile.listFiles()?.forEach { it.deleteRecursively() }
         val sweep =
             try {
                 val device = AdbDevice.connect(adb.get().asFile.toPath(), serial.orNull)
