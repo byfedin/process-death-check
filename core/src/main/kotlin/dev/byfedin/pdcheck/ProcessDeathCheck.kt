@@ -56,6 +56,15 @@ public sealed interface Finding {
             get() = "Expected $expected, got ${actual ?: "no Activity of the app"}"
     }
 
+    /** Not process death: the app crashed after a tap while a sweep explored it. */
+    public data class CrashOnInteraction(val crash: Crash, val action: String) : Finding {
+        override val title: String
+            get() = "Crash after $action: ${crash.exception}"
+
+        override val details: String
+            get() = crash.trace
+    }
+
     public data class TaskLost(val taskId: Int) : Finding {
         override val title: String
             get() = "The task was removed when the process died"
@@ -76,6 +85,8 @@ public data class CheckResult(
     val findings: List<Finding>,
     val durationMillis: Long,
     val artifacts: Map<String, Path>,
+    /** Name shown in reports; a sweep adds the screen title, since one Activity can host many. */
+    val name: String = screen,
 ) {
     val passed: Boolean
         get() = findings.isEmpty()

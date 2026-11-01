@@ -7,6 +7,8 @@ import dev.byfedin.pdcheck.CheckResult
 import dev.byfedin.pdcheck.Finding
 import dev.byfedin.pdcheck.ProcessDeathCheck
 import dev.byfedin.pdcheck.StateDifference
+import dev.byfedin.pdcheck.Sweep
+import dev.byfedin.pdcheck.SweepOptions
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -55,6 +57,25 @@ class SampleAppTest {
         assertTrue(
             finding.crash.exception.startsWith("kotlin.UninitializedPropertyAccessException")
         )
+    }
+
+    @Test
+    fun `sweep finds both broken screens without a script`() {
+        val sweep = Sweep(shell, log = ::println).run(SweepOptions(PACKAGE))
+        val failures =
+            sweep.results.filterNot { it.passed }.associate { it.name to it.findings.single() }
+        assertEquals(
+            setOf(
+                "SessionActivity: Signed in as demo",
+                "ForgetfulFormActivity: Forgetful form (after input)",
+            ),
+            failures.keys,
+        )
+        assertIs<Finding.CrashOnRestore>(failures.getValue("SessionActivity: Signed in as demo"))
+        assertIs<Finding.StateLost>(
+            failures.getValue("ForgetfulFormActivity: Forgetful form (after input)")
+        )
+        assertTrue(sweep.results.any { it.passed && it.name.startsWith("SavedFormActivity") })
     }
 
     private fun check(): CheckResult =
