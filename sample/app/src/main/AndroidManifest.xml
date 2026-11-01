@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <application
+        android:label="pdcheck sample"
+        android:theme="@android:style/Theme.Material.Light.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- Exported so CI can open each screen with `am start -n`. -->
+        <activity
+            android:name=".SavedFormActivity"
+            android:exported="true" />
+        <activity
+            android:name=".ForgetfulFormActivity"
+            android:exported="true" />
+        <activity
+            android:name=".SessionActivity"
+            android:exported="true" />
+    </application>
+</manifest>
