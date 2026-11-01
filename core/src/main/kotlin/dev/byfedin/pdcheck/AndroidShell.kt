@@ -135,6 +135,21 @@ public class AndroidShell(public val device: Device) {
         return Logcat.crashes(output, packageName)
     }
 
+    /**
+     * Waits for a hierarchy that contains [packageName]. A dump taken during a window transition
+     * can be empty, and comparing against it would report every field as lost.
+     */
+    public fun awaitUi(packageName: String, clock: Clock, timeoutMillis: Long = 5_000): UiNode? =
+        try {
+            clock.await("window of $packageName", timeoutMillis) {
+                uiHierarchy()?.takeIf { root ->
+                    root.flatten().any { it.packageName == packageName }
+                }
+            }
+        } catch (timeout: TimeoutException) {
+            null
+        }
+
     /** Returns the current window hierarchy, or null while the window has no root yet. */
     public fun uiHierarchy(): UiNode? {
         val path = "/data/local/tmp/pdcheck-window.xml"

@@ -120,7 +120,9 @@ public class ProcessDeathCheck(
         if (processes.isEmpty()) throw CheckException("$packageName has no running process.")
         val method = resolveMethod(options.killMethod, packageName)
         val snapshot =
-            if (options.compareUi) UiSnapshot.capture(shell.uiHierarchy(), packageName) else null
+            if (options.compareUi)
+                UiSnapshot.capture(shell.awaitUi(packageName, clock), packageName)
+            else null
         options.artifactsDir?.let { dir ->
             artifacts["before.png"] = dir.resolve("before.png").also(shell.device::screenshot)
         }
@@ -215,7 +217,8 @@ public class ProcessDeathCheck(
                     if (late.isNotEmpty()) {
                         findings += Finding.CrashOnRestore(late.first())
                     } else if (snapshot != null) {
-                        val after = UiSnapshot.capture(shell.uiHierarchy(), packageName)
+                        val after =
+                            UiSnapshot.capture(shell.awaitUi(packageName, clock), packageName)
                         val lost = snapshot.diff(after)
                         if (lost.isNotEmpty()) findings += Finding.StateLost(lost)
                     }

@@ -62,6 +62,13 @@ class ProcessDeathCheckTest {
     }
 
     @Test
+    fun `an empty window dump during the transition is not mistaken for lost state`() {
+        val android = FakeAndroid(blankDumpsAfterRestore = 3)
+        val result = check(android)
+        assertTrue(result.passed, result.findings.toString())
+    }
+
+    @Test
     fun `ui comparison can be switched off`() {
         val android = FakeAndroid(restoredNote = "")
         assertTrue(check(android, compareUi = false).passed)
@@ -163,6 +170,7 @@ private class FakeAndroid(
     private val restoredTop: String = "Detail",
     private val removeTaskOnKill: Boolean = false,
     private val killIgnored: Boolean = false,
+    private var blankDumpsAfterRestore: Int = 0,
 ) : Device {
     override val serial = "fake"
     lateinit var clock: VirtualClock
@@ -196,7 +204,15 @@ private class FakeAndroid(
             command.startsWith("logcat") -> ok(crashLog)
             command.startsWith("uiautomator dump") ->
                 ok("UI hierchary dumped to: /data/local/tmp/x.xml\n")
-            command.startsWith("cat ") -> ok(window(if (restored) restoredNote else "hello"))
+            command.startsWith("cat ") ->
+                if (restored && blankDumpsAfterRestore > 0) {
+                    blankDumpsAfterRestore--
+                    ok(
+                        "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation=\"0\"/>"
+                    )
+                } else {
+                    ok(window(if (restored) restoredNote else "hello"))
+                }
             command.startsWith("getprop") -> ok("36\n")
             else -> error("Unexpected command: $command")
         }
