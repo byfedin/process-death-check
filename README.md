@@ -60,7 +60,7 @@ pdcheck kill -p com.example.app
 | Option | Default | Meaning |
 | --- | --- | --- |
 | `-p, --package` | required | Application ID |
-| `-s, --serial` | the only device | Device serial when several are attached |
+| `-s, --serial` | `ANDROID_SERIAL`, else the only device | Device serial when several are attached |
 | `--launch` | off | Force-stop and start the launcher Activity first |
 | `--method` | `auto` | `run-as` (debuggable builds), `am-kill` (any build) or `auto` |
 | `--no-ui-compare` | off | Only check crashes, screen and process |
@@ -71,7 +71,7 @@ Exit codes: `0` passed, `1` a problem was found, `2` the check could not run (no
 
 ### Sweep: every screen, no script
 
-`sweep` starts the app, taps through the screens it can reach and runs the check on each one. A screen is checked when it first appears and again after a toggle on it changed, because untouched screens rarely lose anything. Crashes caused by the taps themselves are reported too.
+`sweep` force-stops and starts the app, taps through the screens it can reach and runs the check on each one. A screen is checked when it first appears and again after a toggle on it changed, because untouched screens rarely lose anything. Crashes caused by the taps themselves are reported too.
 
 ```text
 $ pdcheck sweep -p dev.byfedin.pdcheck.sample
