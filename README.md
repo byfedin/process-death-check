@@ -104,7 +104,7 @@ The plugin adds `pdcheckSweep<Variant>` to Android application modules. It insta
 ```kotlin
 plugins {
     id("com.android.application")
-    id("dev.byfedin.pdcheck")
+    id("dev.byfedin.pdcheck") version "0.1.0"
 }
 
 pdcheck {
@@ -117,7 +117,7 @@ pdcheck {
 ./gradlew :app:pdcheckSweepDebug
 ```
 
-The plugin is not on the Gradle Plugin Portal yet. Until it is, clone this repository and add it to your build with `includeBuild("path/to/process-death-check")` in the `pluginManagement` block of `settings.gradle.kts`, as `sample/` does.
+Version 0.1.0 is waiting for review on the Gradle Plugin Portal. Until it shows up there, clone this repository and add it with `includeBuild("path/to/process-death-check")` in the `pluginManagement` block of `settings.gradle.kts`, as `sample/` does, and drop the version from the `plugins` block.
 
 ### Reports
 
