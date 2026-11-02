@@ -124,6 +124,22 @@ class ActivityDumpTest {
     }
 
     @Test
+    fun `activity destroyed with saved state in an earlier process death is accepted`() {
+        val text =
+            """
+            * Task{1 #7 type=standard A=10001:app U=0 visible=false sz=2}
+              * Hist  #1: ActivityRecord{2 u0 app/.Detail t7}
+                mHaveState=true mIcicle=Bundle[]
+                state=STOPPED delayedResume=false finishing=false
+              * Hist  #0: ActivityRecord{1 u0 app/.Main t7}
+                mHaveState=true mIcicle=Bundle[]
+                state=DESTROYED delayedResume=false finishing=false
+            """
+                .trimIndent()
+        assertTrue(ActivityDump.parse(text).isSavedInBackground("app", 7))
+    }
+
+    @Test
     fun `stopped activity without saved state blocks the check`() {
         val text =
             """

@@ -15,6 +15,7 @@ public object Reports {
             if (index > 0) append(",")
             append("\n    {\n")
             field("package", result.packageName)
+            field("name", result.name)
             field("screen", result.screen)
             field("passed", result.passed)
             field("killMethod", result.killMethod.name)
@@ -49,7 +50,7 @@ public object Reports {
             append("failures=\"$failures\" errors=\"0\" time=\"$seconds\">\n")
             for (result in results) {
                 append("  <testcase classname=\"${xml(result.packageName)}\" ")
-                append("name=\"${xml(result.screen)}\" time=\"${result.durationMillis / 1000.0}\"")
+                append("name=\"${xml(result.name)}\" time=\"${result.durationMillis / 1000.0}\"")
                 if (result.passed) {
                     append("/>\n")
                     continue
@@ -79,6 +80,7 @@ public object Reports {
                 is Finding.StateLost -> "state-lost"
                 is Finding.WrongScreen -> "wrong-screen"
                 is Finding.TaskLost -> "task-lost"
+                is Finding.CrashOnInteraction -> "crash-on-interaction"
             }
 
     private fun StringBuilder.field(name: String, value: Any) {

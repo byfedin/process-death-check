@@ -56,6 +56,15 @@ public sealed interface Finding {
             get() = "Expected $expected, got ${actual ?: "no Activity of the app"}"
     }
 
+    /** Not process death: the app crashed after a tap while a sweep explored it. */
+    public data class CrashOnInteraction(val crash: Crash, val action: String) : Finding {
+        override val title: String
+            get() = "Crash after $action: ${crash.exception}"
+
+        override val details: String
+            get() = crash.trace
+    }
+
     public data class TaskLost(val taskId: Int) : Finding {
         override val title: String
             get() = "The task was removed when the process died"
@@ -76,6 +85,8 @@ public data class CheckResult(
     val findings: List<Finding>,
     val durationMillis: Long,
     val artifacts: Map<String, Path>,
+    /** Name shown in reports; a sweep adds the screen title, since one Activity can host many. */
+    val name: String = screen,
 ) {
     val passed: Boolean
         get() = findings.isEmpty()
@@ -109,7 +120,11 @@ public class ProcessDeathCheck(
         if (processes.isEmpty()) throw CheckException("$packageName has no running process.")
         val method = resolveMethod(options.killMethod, packageName)
         val snapshot =
-            if (options.compareUi) UiSnapshot.capture(shell.uiHierarchy(), packageName) else null
+            if (options.compareUi) {
+                val root = shell.awaitUi(packageName, clock)
+                if (root == null) log("UI not compared: uiautomator could not read the window")
+                root?.let { UiSnapshot.capture(it, packageName) }
+            } else null
         options.artifactsDir?.let { dir ->
             artifacts["before.png"] = dir.resolve("before.png").also(shell.device::screenshot)
         }
@@ -150,7 +165,9 @@ public class ProcessDeathCheck(
         )
 
         val logcatFrom = shell.logcatTime()
-        kill(method, packageName, processes)
+        // Processes can start or exit while the app sits in the background.
+        val victims = shell.processes(packageName).ifEmpty { processes }
+        kill(method, packageName, victims)
         try {
             clock.await("process exit", options.killTimeoutMillis) {
                 Unit.takeIf { shell.processes(packageName).isEmpty() }
@@ -163,12 +180,12 @@ public class ProcessDeathCheck(
                     else "Check that no foreground service keeps it alive."
             )
         }
-        log("Killed ${processes.joinToString { "${it.name} (${it.pid})" }} with $method")
+        log("Killed ${victims.joinToString { "${it.name} (${it.pid})" }} with $method")
 
         val findings = mutableListOf<Finding>()
         if (shell.activities().recordsOf(packageName).none { it.taskId == top.taskId }) {
             findings += Finding.TaskLost(top.taskId)
-            return result(options, top, method, processes, null, findings, started, artifacts)
+            return result(options, top, method, victims, null, findings, started, artifacts)
         }
 
         val root =
@@ -195,8 +212,13 @@ public class ProcessDeathCheck(
             is RestoreOutcome.Crashed -> findings += Finding.CrashOnRestore(restored.crash)
             is RestoreOutcome.Resumed -> {
                 restoredPid = restored.pid
-                if (restored.activity?.component != top.component) {
-                    findings += Finding.WrongScreen(top.component, restored.activity?.component)
+                val activity = restored.activity
+                if (activity?.component != top.component || activity.taskId != top.taskId) {
+                    findings +=
+                        Finding.WrongScreen(
+                            "${top.component} in task #${top.taskId}",
+                            activity?.let { "${it.component} in task #${it.taskId}" },
+                        )
                 } else {
                     // Crashes in onResume, LaunchedEffect or the first frame happen a bit later.
                     clock.sleep(options.settleMillis)
@@ -204,14 +226,20 @@ public class ProcessDeathCheck(
                     if (late.isNotEmpty()) {
                         findings += Finding.CrashOnRestore(late.first())
                     } else if (snapshot != null) {
-                        val after = UiSnapshot.capture(shell.uiHierarchy(), packageName)
+                        val root =
+                            shell.awaitUi(packageName, clock)
+                                ?: throw CheckException(
+                                    "uiautomator could not read the restored window, so lost " +
+                                        "input cannot be ruled out. Retry, or pass --no-ui-compare."
+                                )
+                        val after = UiSnapshot.capture(root, packageName)
                         val lost = snapshot.diff(after)
                         if (lost.isNotEmpty()) findings += Finding.StateLost(lost)
                     }
                 }
             }
         }
-        if (restoredPid != null && processes.any { it.pid == restoredPid }) {
+        if (restoredPid != null && victims.any { it.pid == restoredPid }) {
             // The kill was verified above, so this only happens with PID reuse; still fail loudly.
             throw CheckException(
                 "Restored process reused pid $restoredPid; the kill cannot be proven."
@@ -220,7 +248,7 @@ public class ProcessDeathCheck(
         options.artifactsDir?.let { dir ->
             artifacts["after.png"] = dir.resolve("after.png").also(shell.device::screenshot)
         }
-        return result(options, top, method, processes, restoredPid, findings, started, artifacts)
+        return result(options, top, method, victims, restoredPid, findings, started, artifacts)
     }
 
     private fun resolveMethod(requested: KillMethod, packageName: String): KillMethod =
@@ -238,8 +266,10 @@ public class ProcessDeathCheck(
 
     private fun kill(method: KillMethod, packageName: String, processes: List<AppProcess>) {
         when (method) {
+            // execute, not shell: a process that already exited makes kill return non-zero.
+            // The wait for process exit below decides whether the kill worked.
             KillMethod.RUN_AS ->
-                shell.device.shell(
+                shell.device.execute(
                     "run-as",
                     packageName,
                     "kill",

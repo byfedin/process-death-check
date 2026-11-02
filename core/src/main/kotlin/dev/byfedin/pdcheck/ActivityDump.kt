@@ -20,6 +20,10 @@ public data class ActivityRecordInfo(
     internal val isStopped: Boolean
         get() = state.equals("STOPPED", ignoreCase = true)
 
+    /** Destroyed in an earlier process death or by the system; recreated from its saved state. */
+    internal val isDestroyed: Boolean
+        get() = state.equals("DESTROYED", ignoreCase = true)
+
     /** A record below the top that was never created holds no state that could be lost. */
     internal val neverLaunched: Boolean
         get() = state.equals("INITIALIZING", ignoreCase = true)
@@ -49,7 +53,7 @@ public data class ActivityDump(
         val live = records.filter { it.taskId == taskId && !it.finishing }
         return live.isNotEmpty() &&
             live.any { it.isStopped } &&
-            live.all { (it.isStopped && it.haveState) || it.neverLaunched }
+            live.all { ((it.isStopped || it.isDestroyed) && it.haveState) || it.neverLaunched }
     }
 
     public companion object {

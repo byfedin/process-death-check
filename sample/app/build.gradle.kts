@@ -1,6 +1,7 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    id("dev.byfedin.pdcheck")
 }
 
 android {
@@ -27,3 +28,6 @@ dependencies {
     implementation(libs.compose.material3)
     implementation(libs.activity.compose)
 }
+
+// The sample is broken on purpose; CI asserts the findings in e2e, not here.
+pdcheck { failOnFindings = false }

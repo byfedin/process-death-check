@@ -23,7 +23,12 @@ class ReportsTest {
             artifacts = emptyMap(),
         )
     private val pass =
-        crash.copy(screen = "app/app.Main", restoredPid = 200, findings = emptyList())
+        crash.copy(
+            screen = "app/app.Main",
+            name = "app/app.Main",
+            restoredPid = 200,
+            findings = emptyList(),
+        )
 
     @Test
     fun `json escapes quotes, tabs and newlines`() {

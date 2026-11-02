@@ -1,4 +1,6 @@
 pluginManagement {
+    // The pdcheck Gradle plugin, built from this repository.
+    includeBuild("..")
     repositories {
         google()
         gradlePluginPortal()
