@@ -117,8 +117,6 @@ pdcheck {
 ./gradlew :app:pdcheckSweepDebug
 ```
 
-Version 0.1.0 is waiting for review on the Gradle Plugin Portal. Until it shows up there, clone this repository and add it with `includeBuild("path/to/process-death-check")` in the `pluginManagement` block of `settings.gradle.kts`, as `sample/` does, and drop the version from the `plugins` block.
-
 ### Reports
 
 Every run writes to the output directory:
