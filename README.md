@@ -33,7 +33,7 @@ Users report process death bugs as "the app forgot what I was doing" or as a cra
 3. Kills every process of the app: `run-as <pkg> kill -9` on debuggable builds, `am kill` otherwise.
 4. Waits until the processes are gone and checks that the task survived.
 5. Brings the task back with its root Intent, exactly like tapping the launcher icon.
-6. Fails when the app crashed while restoring, a different Activity or task came back, or typed text or toggles changed. If the process ID did not change, the kill cannot be proven and the check stops with exit code 2 instead of passing.
+6. Fails when the app crashed while restoring, a different Activity or task came back, typed text or toggles changed, or text you asked for with `--expect-text` is gone. If the process ID did not change, the kill cannot be proven and the check stops with exit code 2 instead of passing.
 
 ## Install
 
@@ -66,8 +66,15 @@ pdcheck kill -p com.example.app
 | `--no-ui-compare` | off | Only check crashes, screen and process |
 | `-o, --output` | `pdcheck-reports` | Where reports and screenshots go |
 | `--restore-timeout` | `20000` | Milliseconds to wait for the app to come back |
+| `--expect-text` | none | Text that must be on screen before the kill and after the restore, as text or content description. Repeat it for several |
 
-Exit codes: `0` passed, `1` a problem was found, `2` the check could not run (no device, app not in the foreground, process would not die, restored window unreadable). A sweep exits with `2` when it could not check a single screen.
+Exit codes: `0` passed, `1` a problem was found, `2` the check could not run (no device, app not in the foreground, process would not die, restored window unreadable, expected text not on screen before the kill).
+
+`--expect-text` checks the screen itself, not only its input. Pass a text that only this screen shows, such as an order number or a title:
+
+```bash
+pdcheck kill -p com.example.app --expect-text "Order #42"
+``` A sweep exits with `2` when it could not check a single screen.
 
 ### Sweep: every screen, no script
 
@@ -148,8 +155,8 @@ Scroll positions, loaded lists and anything the app reloads from the network are
 
 - `run-as` works only for debuggable builds. `am kill` works for release builds but only kills a process the system already treats as cached.
 - Apps with several processes are supported; every `pkg:*` process is killed.
-- In a single-Activity app, `kill` compares the Activity and task, not the Compose destination. Coming back to the start destination is caught only when a field or toggle on the lost screen had a value. A sweep labels destinations separately, but each check has the same limit.
-- Screens drawn without accessibility nodes (games, custom canvases, most WebViews) can be checked for crashes, but not for lost input.
+- In a single-Activity app, `kill` compares the Activity and task, not the Compose destination. Coming back to the start destination is caught only when a field or toggle on the lost screen had a value, or with `--expect-text`. A sweep labels destinations separately, but each check has the same limit.
+- Screens drawn without accessibility nodes (games, custom canvases, most WebViews) can be checked for crashes, but not for lost input. With `--expect-text`, such a screen is refused with exit code `2` instead of passing.
 - `kill` covers one screen. `sweep` reaches only what taps can reach: screens behind sign-in, typed input or deep links need `kill` from your own setup.
 
 ## Try it on the sample

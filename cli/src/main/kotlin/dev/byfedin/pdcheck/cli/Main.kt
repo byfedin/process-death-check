@@ -7,6 +7,7 @@ import com.github.ajalt.clikt.core.main
 import com.github.ajalt.clikt.core.subcommands
 import com.github.ajalt.clikt.parameters.options.default
 import com.github.ajalt.clikt.parameters.options.flag
+import com.github.ajalt.clikt.parameters.options.multiple
 import com.github.ajalt.clikt.parameters.options.option
 import com.github.ajalt.clikt.parameters.options.required
 import com.github.ajalt.clikt.parameters.options.versionOption
@@ -63,6 +64,13 @@ private class Kill : CliktCommand(name = "kill") {
             .default(Path.of("pdcheck-reports"))
     private val restoreTimeout by
         option(help = "Milliseconds to wait for the app to come back").long().default(20_000)
+    private val expectTexts by
+        option(
+                "--expect-text",
+                help =
+                    "Text that must be on screen before the kill and after the restore; repeatable",
+            )
+            .multiple()
 
     override fun run() {
         val result =
@@ -81,6 +89,7 @@ private class Kill : CliktCommand(name = "kill") {
                             compareUi = !noUiCompare,
                             restoreTimeoutMillis = restoreTimeout,
                             artifactsDir = output,
+                            expectedTexts = expectTexts,
                         )
                     )
             } catch (failure: CheckException) {

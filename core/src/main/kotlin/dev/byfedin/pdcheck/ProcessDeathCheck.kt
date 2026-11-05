@@ -22,6 +22,11 @@ public data class CheckOptions(
     val settleMillis: Long = 1_500,
     /** Where screenshots and raw dumps go; null keeps nothing on disk. */
     val artifactsDir: Path? = null,
+    /**
+     * Text that has to be on screen, as text or content description, before the kill and again
+     * after the restore. Catches a single-Activity app that comes back on its start destination.
+     */
+    val expectedTexts: List<String> = emptyList(),
 )
 
 public sealed interface Finding {
@@ -54,6 +59,14 @@ public sealed interface Finding {
 
         override val details: String
             get() = "Expected $expected, got ${actual ?: "no Activity of the app"}"
+    }
+
+    public data class ExpectedTextMissing(val texts: List<String>) : Finding {
+        override val title: String
+            get() = "Expected text missing after restore (${texts.size})"
+
+        override val details: String
+            get() = texts.joinToString("\n") { "\"$it\"" }
     }
 
     /** Not process death: the app crashed after a tap while a sweep explored it. */
@@ -119,12 +132,27 @@ public class ProcessDeathCheck(
         val processes = shell.processes(packageName)
         if (processes.isEmpty()) throw CheckException("$packageName has no running process.")
         val method = resolveMethod(options.killMethod, packageName)
+        val window =
+            if (options.compareUi || options.expectedTexts.isNotEmpty()) {
+                readWindow(packageName, options.expectedTexts)
+            } else null
+        val notShown = options.expectedTexts.filterNot { window?.shows(it, packageName) == true }
+        if (notShown.isNotEmpty()) {
+            throw CheckException(
+                "Expected text is not on screen before the kill: " +
+                    notShown.joinToString { "\"$it\"" } +
+                    ". Open the screen that shows it. Apps that draw their own UI may not expose " +
+                    "text to uiautomator."
+            )
+        }
         val snapshot =
             if (options.compareUi) {
-                val root = shell.awaitUi(packageName, clock)
-                if (root == null) log("UI not compared: uiautomator could not read the window")
-                root?.let { UiSnapshot.capture(it, packageName) }
+                if (window == null) log("UI not compared: uiautomator could not read the window")
+                window?.let { UiSnapshot.capture(it, packageName) }
             } else null
+        if (snapshot != null && snapshot.values.isEmpty() && options.expectedTexts.isEmpty()) {
+            log("No text fields or toggles on screen, so only the Activity and task are compared")
+        }
         options.artifactsDir?.let { dir ->
             artifacts["before.png"] = dir.resolve("before.png").also(shell.device::screenshot)
         }
@@ -225,16 +253,20 @@ public class ProcessDeathCheck(
                     val late = shell.crashesSince(logcatFrom, packageName)
                     if (late.isNotEmpty()) {
                         findings += Finding.CrashOnRestore(late.first())
-                    } else if (snapshot != null) {
+                    } else if (snapshot != null || options.expectedTexts.isNotEmpty()) {
                         val root =
-                            shell.awaitUi(packageName, clock)
+                            readWindow(packageName, options.expectedTexts)
                                 ?: throw CheckException(
                                     "uiautomator could not read the restored window, so lost " +
                                         "input cannot be ruled out. Retry, or pass --no-ui-compare."
                                 )
-                        val after = UiSnapshot.capture(root, packageName)
-                        val lost = snapshot.diff(after)
-                        if (lost.isNotEmpty()) findings += Finding.StateLost(lost)
+                        if (snapshot != null) {
+                            val lost = snapshot.diff(UiSnapshot.capture(root, packageName))
+                            if (lost.isNotEmpty()) findings += Finding.StateLost(lost)
+                        }
+                        val missing =
+                            options.expectedTexts.filterNot { root.shows(it, packageName) }
+                        if (missing.isNotEmpty()) findings += Finding.ExpectedTextMissing(missing)
                     }
                 }
             }
@@ -250,6 +282,36 @@ public class ProcessDeathCheck(
         }
         return result(options, top, method, victims, restoredPid, findings, started, artifacts)
     }
+
+    /**
+     * Reads the app's window. With [texts], keeps reading until all of them are on screen, because
+     * some apps build their accessibility tree after the first frame; on timeout it returns the
+     * last window read, so the caller can tell which text is missing.
+     */
+    private fun readWindow(
+        packageName: String,
+        texts: List<String>,
+        timeoutMillis: Long = 5_000,
+    ): UiNode? {
+        if (texts.isEmpty()) return shell.awaitUi(packageName, clock, timeoutMillis)
+        var last: UiNode? = null
+        return try {
+            clock.await("expected text", timeoutMillis) {
+                shell
+                    .uiHierarchy()
+                    ?.takeIf { root -> root.flatten().any { it.packageName == packageName } }
+                    ?.also { last = it }
+                    ?.takeIf { root -> texts.all { root.shows(it, packageName) } }
+            }
+        } catch (timeout: TimeoutException) {
+            last
+        }
+    }
+
+    private fun UiNode.shows(text: String, packageName: String): Boolean =
+        flatten().any {
+            it.packageName == packageName && (text in it.text || text in it.contentDescription)
+        }
 
     private fun resolveMethod(requested: KillMethod, packageName: String): KillMethod =
         when (requested) {

@@ -140,6 +140,49 @@ class ProcessDeathCheckTest {
     }
 
     @Test
+    fun `expected text on the restored screen passes`() {
+        val result = check(FakeAndroid(), expectedTexts = listOf("Order #42"))
+        assertTrue(result.passed, result.findings.toString())
+    }
+
+    @Test
+    fun `expected text missing after restore is reported`() {
+        val android = FakeAndroid(restoredTitle = "Orders")
+        val finding = check(android, expectedTexts = listOf("Order #42")).findings.single()
+        assertIs<Finding.ExpectedTextMissing>(finding)
+        assertEquals(listOf("Order #42"), finding.texts)
+    }
+
+    @Test
+    fun `expected text is checked without ui comparison`() {
+        val android = FakeAndroid(restoredTitle = "Orders", restoredNote = "")
+        val finding =
+            check(android, compareUi = false, expectedTexts = listOf("Order #42")).findings.single()
+        assertIs<Finding.ExpectedTextMissing>(finding)
+    }
+
+    @Test
+    fun `expected text is found in a content description`() {
+        val android = FakeAndroid(titleInDescription = true)
+        assertTrue(check(android, expectedTexts = listOf("Order #42")).passed)
+    }
+
+    @Test
+    fun `expected text waits for a window that builds its tree late`() {
+        val android = FakeAndroid(bareDumpsBeforeKill = 3)
+        assertTrue(check(android, expectedTexts = listOf("Order #42")).passed)
+    }
+
+    @Test
+    fun `expected text that never shows up is refused before anything is killed`() {
+        val android = FakeAndroid(bareDumpsBeforeKill = Int.MAX_VALUE)
+        val error =
+            assertFailsWith<CheckException> { check(android, expectedTexts = listOf("Order #42")) }
+        assertTrue(error.message!!.contains("not on screen before the kill"))
+        assertTrue(android.commands.none { "kill" in it })
+    }
+
+    @Test
     fun `artifacts are written when a directory is given`() {
         val dir = kotlin.io.path.createTempDirectory("pdcheck")
         val result = check(FakeAndroid(), artifacts = dir)
@@ -154,6 +197,7 @@ class ProcessDeathCheckTest {
         compareUi: Boolean = true,
         method: KillMethod = KillMethod.AUTO,
         artifacts: Path? = null,
+        expectedTexts: List<String> = emptyList(),
     ): CheckResult {
         android.clock = clock
         return ProcessDeathCheck(AndroidShell(android), clock)
@@ -163,6 +207,7 @@ class ProcessDeathCheckTest {
                     killMethod = method,
                     compareUi = compareUi,
                     artifactsDir = artifacts,
+                    expectedTexts = expectedTexts,
                 )
             )
     }
@@ -194,6 +239,10 @@ private class FakeAndroid(
     private var blankDumpsAfterRestore: Int = 0,
     private val restoredTaskId: Int = 7,
     private val killExitCode: Int = 0,
+    private val restoredTitle: String = "Order #42",
+    private val titleInDescription: Boolean = false,
+    // Dumps that show only the app's root view, like a Flutter view before its semantics tree.
+    private var bareDumpsBeforeKill: Int = 0,
 ) : Device {
     override val serial = "fake"
     lateinit var clock: VirtualClock
@@ -233,8 +282,13 @@ private class FakeAndroid(
                     ok(
                         "<?xml version='1.0' encoding='UTF-8' standalone='yes' ?><hierarchy rotation=\"0\"/>"
                     )
+                } else if (!restored && bareDumpsBeforeKill > 0) {
+                    bareDumpsBeforeKill--
+                    ok(bareWindow())
+                } else if (restored) {
+                    ok(window(restoredNote, restoredTitle))
                 } else {
-                    ok(window(if (restored) restoredNote else "hello"))
+                    ok(window("hello", "Order #42"))
                 }
             command.startsWith("getprop") -> ok("36\n")
             else -> error("Unexpected command: $command")
@@ -322,13 +376,25 @@ private class FakeAndroid(
         }
     }
 
-    private fun window(note: String) =
-        """
+    private fun window(note: String, title: String): String {
+        val (text, description) = if (titleInDescription) "" to title else title to ""
+        return """
         <?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
         <hierarchy rotation="0">
           <node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="app" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" scrollable="false" selected="false" password="false" bounds="[0,0][1080,2400]">
-            <node index="0" text="$note" resource-id="app:id/note" class="android.widget.EditText" package="app" content-desc="" checkable="false" checked="false" clickable="true" enabled="true" scrollable="false" selected="false" password="false" bounds="[0,100][1080,200]" />
+            <node index="0" text="$text" resource-id="" class="android.widget.TextView" package="app" content-desc="$description" checkable="false" checked="false" clickable="false" enabled="true" scrollable="false" selected="false" password="false" bounds="[0,0][1080,100]" />
+            <node index="1" text="$note" resource-id="app:id/note" class="android.widget.EditText" package="app" content-desc="" checkable="false" checked="false" clickable="true" enabled="true" scrollable="false" selected="false" password="false" bounds="[0,100][1080,200]" />
           </node>
+        </hierarchy>
+        """
+            .trimIndent()
+    }
+
+    private fun bareWindow() =
+        """
+        <?xml version='1.0' encoding='UTF-8' standalone='yes' ?>
+        <hierarchy rotation="0">
+          <node index="0" text="" resource-id="" class="android.widget.FrameLayout" package="app" content-desc="" checkable="false" checked="false" clickable="false" enabled="true" scrollable="false" selected="false" password="false" bounds="[0,0][1080,2400]" />
         </hierarchy>
         """
             .trimIndent()

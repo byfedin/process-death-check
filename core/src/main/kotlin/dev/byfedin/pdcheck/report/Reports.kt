@@ -79,6 +79,7 @@ public object Reports {
                 is Finding.CrashOnRestore -> "crash"
                 is Finding.StateLost -> "state-lost"
                 is Finding.WrongScreen -> "wrong-screen"
+                is Finding.ExpectedTextMissing -> "expected-text-missing"
                 is Finding.TaskLost -> "task-lost"
                 is Finding.CrashOnInteraction -> "crash-on-interaction"
             }

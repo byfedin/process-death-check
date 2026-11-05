@@ -2,6 +2,7 @@ package dev.byfedin.pdcheck.e2e
 
 import dev.byfedin.pdcheck.AdbDevice
 import dev.byfedin.pdcheck.AndroidShell
+import dev.byfedin.pdcheck.CheckException
 import dev.byfedin.pdcheck.CheckOptions
 import dev.byfedin.pdcheck.CheckResult
 import dev.byfedin.pdcheck.Finding
@@ -11,6 +12,7 @@ import dev.byfedin.pdcheck.Sweep
 import dev.byfedin.pdcheck.SweepOptions
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
@@ -54,6 +56,21 @@ class SampleAppTest {
     }
 
     @Test
+    fun `expected title comes back with the saved form`() {
+        open("SavedFormActivity")
+        val result = check(expectedTexts = listOf("Saved form"))
+        assertTrue(result.passed, result.findings.joinToString { it.title + "\n" + it.details })
+    }
+
+    @Test
+    fun `text that is not on screen is refused before the kill`() {
+        open("SavedFormActivity")
+        val error =
+            assertFailsWith<CheckException> { check(expectedTexts = listOf("Not on this screen")) }
+        assertTrue(error.message!!.contains("not on screen before the kill"))
+    }
+
+    @Test
     fun `sweep finds both broken screens without a script`() {
         val sweep = Sweep(shell, log = ::println).run(SweepOptions(PACKAGE))
         val failures =
@@ -72,8 +89,9 @@ class SampleAppTest {
         assertTrue(sweep.results.any { it.passed && it.name.startsWith("SavedFormActivity") })
     }
 
-    private fun check(): CheckResult =
-        ProcessDeathCheck(shell, log = ::println).run(CheckOptions(PACKAGE))
+    private fun check(expectedTexts: List<String> = emptyList()): CheckResult =
+        ProcessDeathCheck(shell, log = ::println)
+            .run(CheckOptions(PACKAGE, expectedTexts = expectedTexts))
 
     private fun open(activity: String) {
         shell.launchFresh(PACKAGE)
